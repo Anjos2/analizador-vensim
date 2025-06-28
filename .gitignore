@@ -1,15 +1,15 @@
 # Dependencias de Node
-/node_modules
+node_modules/
 
 # Archivos de caché de Vite
-.vite
+.vite/
 
 # Archivos de build del frontend
-/dist
+dist/
 
 # Archivos de entorno virtual de Python
-/venv
-/env
+venv/
+env/
 
 # Carpetas de caché de Python
 __pycache__/
