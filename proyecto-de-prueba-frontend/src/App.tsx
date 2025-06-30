@@ -38,6 +38,7 @@ interface FirebaseConfig {
     storageBucket?: string;
     messagingSenderId?: string;
     appId?: string;
+    measurementId?: string;
 }
 
 // --- Sample Data for when backend is not running ---
@@ -65,12 +66,13 @@ const BASE_SCENARIO = {
 
 // --- Firebase Config ---
 const firebaseConfig: FirebaseConfig = {
-        apiKey: "AIzaSyAr8Vpz-530USM_oHFJcIM3edwZxSJEaxs",
-        authDomain: "visor-vensim-web.firebaseapp.com",
-        projectId: "visor-vensim-web",
-        storageBucket: "visor-vensim-web.firebasestorage.app",
-        messagingSenderId: "679190347459",
-        appId: "1:679190347459:web:17f430e578ad1bc0712c76"
+    apiKey: "AIzaSyAr8Vpz-530USM_oHFJcIM3edwZxSJEaxs",
+    authDomain: "visor-vensim-web.firebaseapp.com",
+    projectId: "visor-vensim-web",
+    storageBucket: "visor-vensim-web.firebasestorage.app",
+    messagingSenderId: "679190347459",
+    appId: "1:679190347459:web:17f430e578ad1bc0712c76",
+    measurementId: "G-H8FEWLMXKZ"
 };
 
 const appId = 'vensim-app-local';
@@ -196,7 +198,7 @@ const ControlPanel: FC<ControlPanelProps> = ({ onAddScenarioFromBackend }) => {
         formData.append('scenarioName', scenarioName);
 
         try {
-            const response = await fetch('https://analizador-vensim-backend.onrender.com/simulate', { method: 'POST', body: formData });
+            const response = await fetch('http://127.0.0.1:5000/simulate', { method: 'POST', body: formData });
             if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || `Error del servidor: ${response.status}`); }
             const resultsJsonString = await response.json();
             const parsedData = JSON.parse(resultsJsonString) as DataRow[];
@@ -286,7 +288,7 @@ const ModifyScenarioTab: FC<ModifyScenarioTabProps> = ({ baseScenarios, onAddSce
         };
 
         try {
-            const response = await fetch('https://analizador-vensim-backend.onrender.com/resimulate', { 
+            const response = await fetch('http://127.0.0.1:5000/resimulate', { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -342,7 +344,41 @@ const ModifyScenarioTab: FC<ModifyScenarioTabProps> = ({ baseScenarios, onAddSce
 const DataViewerTab: FC<DataViewerTabProps> = ({ data }) => { if (!data || data.length === 0) return <p>No hay datos para mostrar.</p>; const headers = Object.keys(data[0]); const formatValue = (key: string, value: number) => key.toLowerCase().includes('tasa') ? value.toFixed(3) : value.toFixed(2); return (<div className="overflow-auto h-full"><table className="w-full text-sm text-left text-gray-300"><thead className="text-xs text-[#5DADE2] uppercase bg-[#2E2E2E] sticky top-0"><tr>{headers.map(header => <th key={header} scope="col" className="px-6 py-3 font-semibold">{header.replace(/_/g, ' ')}</th>)}</tr></thead><tbody>{data.map((row, rowIndex) => (<tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-[#292929]' : 'bg-[#343638]'} border-b border-gray-700`}>{headers.map(header => (<td key={header} className="px-6 py-2">{formatValue(header, row[header])}</td>))}</tr>))}</tbody></table></div>); };
 interface CompareField { id: number; scenarioId: string; variable: string; }
 type PlotDataType = { TIME: number; [key: string]: number; };
-const PlotConfigTab: FC<PlotConfigTabProps> = ({ scenario, scenarios }) => { const [plotType, setPlotType] = useState<'single' | 'multi'>('single'); const [singleVar, setSingleVar] = useState<string>(''); const [numCompare, setNumCompare] = useState<number>(2); const [compareFields, setCompareFields] = useState<CompareField[]>([]); const [plotData, setPlotData] = useState<PlotDataType[]>([]); const [plotLines, setPlotLines] = useState<{dataKey: string; name: string; stroke: string}[]>([]); const varOptions = useMemo(() => scenario?.data?.[0] ? Object.keys(scenario.data[0]).filter(k => k !== 'TIME') : [], [scenario]); useEffect(() => { if(varOptions.length > 0) setSingleVar(varOptions[0]); setCompareFields([]); }, [scenario, varOptions]); const handleGenerateCompareFields = () => setCompareFields(Array.from({ length: numCompare }, (_, i) => ({ id: i, scenarioId: scenario.id, variable: varOptions[0] || '' }))); const handleCompareFieldChange = (index: number, field: keyof CompareField, value: string) => { const newFields = [...compareFields]; newFields[index] = { ...newFields[index], [field]: value }; if (field === 'scenarioId') { const newScenarioData = scenarios.find(s => s.id === value); if (newScenarioData?.data?.[0]) { const newVarOptions = Object.keys(newScenarioData.data[0]).filter(k => k !== 'TIME'); newFields[index].variable = newVarOptions[0] || ''; }} setCompareFields(newFields); }; const plotSingle = () => { if (!singleVar) return; setPlotData(scenario.data); setPlotLines([{ dataKey: singleVar, name: `${scenario.name}: ${singleVar.replace(/_/g, ' ')}`, stroke: COLORS[0] }]); }; const plotMulti = () => { const lineConfigs: {dataKey: string; name: string; stroke: string}[] = []; const allData: { [key: number]: PlotDataType } = {}; compareFields.forEach((field, index) => { if(!field.scenarioId || !field.variable) return; const selectedScenario = scenarios.find(s => s.id === field.scenarioId); if(!selectedScenario) return; const dataKey = `${selectedScenario.name}-${field.variable}-${index}`; lineConfigs.push({ dataKey, name: `${selectedScenario.name}: ${field.variable.replace(/_/g, ' ')}`, stroke: COLORS[index % COLORS.length]}); selectedScenario.data.forEach(row => { if (!allData[row.TIME]) allData[row.TIME] = { TIME: row.TIME }; allData[row.TIME][dataKey] = row[field.variable]; }); }); setPlotData(Object.values(allData).sort((a,b) => a.TIME - b.TIME)); setPlotLines(lineConfigs); }; const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE", "#00C49F", "#FFBB28", "#FF8042"]; return (<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full"><div className="bg-[#2E2E2E] rounded-lg p-4 flex flex-col space-y-4"><h3 className="text-lg font-semibold text-[#5DADE2]">Configuración</h3><div className="flex space-x-2 bg-[#242424] p-1 rounded-lg"><button onClick={() => setPlotType('single')} className={`flex-1 p-2 rounded-md text-sm transition ${plotType === 'single' ? 'bg-[#007ACC]' : 'hover:bg-gray-700'}`}>Gráfica Simple</button><button onClick={() => setPlotType('multi')} className={`flex-1 p-2 rounded-md text-sm transition ${plotType === 'multi' ? 'bg-[#007ACC]' : 'hover:bg-gray-700'}`}>Comparativa Múltiple</button></div>{plotType === 'single' && (<Card><h4 className="font-semibold mb-2">Variable Única</h4><Select value={singleVar} onChange={e => setSingleVar(e.target.value)}>{varOptions.map(v => <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>)}</Select><Button onClick={plotSingle} className="mt-2 w-full">Graficar</Button></Card>)}{plotType === 'multi' && (<Card><h4 className="font-semibold mb-2">Comparativa Múltiple</h4><div className="flex items-center space-x-2"><Input type="number" value={numCompare} onChange={e => setNumCompare(Number(e.target.value))} min="2" max="8" /><Button onClick={handleGenerateCompareFields}>Generar Campos</Button></div><div className="mt-4 space-y-3 max-h-60 overflow-y-auto pr-2">{compareFields.map((field, index) => { const currentScenario = scenarios.find(s => s.id === field.scenarioId); const currentVarOptions = currentScenario?.data?.[0] ? Object.keys(currentScenario.data[0]).filter(k => k !== 'TIME') : []; return (<div key={field.id} className="p-2 bg-gray-900/50 rounded-md space-y-2"><p className="text-xs font-bold text-cyan-400">Variable {index + 1}</p><Select value={field.scenarioId} onChange={e => handleCompareFieldChange(index, 'scenarioId', e.target.value)}>{scenarios.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select><Select value={field.variable} onChange={e => handleCompareFieldChange(index, 'variable', e.target.value)}>{currentVarOptions.map(v => <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>)}</Select></div>);})}</div>{compareFields.length > 0 && <Button onClick={plotMulti} className="mt-4 w-full">Graficar</Button>}</Card>)}</div><div className="bg-[#2E2E2E] rounded-lg p-4 flex flex-col"><h3 className="text-lg font-semibold text-[#5DADE2] mb-4">Visualización</h3><div className="flex-1"><ResponsiveContainer width="100%" height="100%"><LineChart data={plotData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke="#444" /><XAxis dataKey="TIME" stroke="#EAEAEA" tick={{ fill: '#EAEAEA', fontSize: 12 }} /><YAxis stroke="#EAEAEA" tick={{ fill: '#EAEAEA', fontSize: 12 }} domain={['auto', 'auto']} /><Tooltip contentStyle={{ backgroundColor: '#242424', border: '1px solid #555' }} labelStyle={{ color: '#EAEAEA' }}/><Legend wrapperStyle={{fontSize: "12px"}}/>{plotLines.map(line => <Line key={line.dataKey} type="monotone" {...line} dot={false} />)}</LineChart></ResponsiveContainer></div></div></div>); };
+const PlotConfigTab: FC<PlotConfigTabProps> = ({ scenario, scenarios }) => { const [plotType, setPlotType] = useState<'single' | 'multi'>('single'); const [singleVar, setSingleVar] = useState<string>(''); const [numCompare, setNumCompare] = useState<number>(2); const [compareFields, setCompareFields] = useState<CompareField[]>([]); const [plotData, setPlotData] = useState<PlotDataType[]>([]); const [plotLines, setPlotLines] = useState<{dataKey: string; name: string; stroke: string}[]>([]); const varOptions = useMemo(() => scenario?.data?.[0] ? Object.keys(scenario.data[0]).filter(k => k !== 'TIME') : [], [scenario]); useEffect(() => { if(varOptions.length > 0) setSingleVar(varOptions[0]); setCompareFields([]); }, [scenario, varOptions]); const handleGenerateCompareFields = () => setCompareFields(Array.from({ length: numCompare }, (_, i) => ({ id: i, scenarioId: scenario.id, variable: varOptions[0] || '' }))); const handleCompareFieldChange = (index: number, field: keyof CompareField, value: string) => { const newFields = [...compareFields]; newFields[index] = { ...newFields[index], [field]: value }; if (field === 'scenarioId') { const newScenarioData = scenarios.find(s => s.id === value); if (newScenarioData?.data?.[0]) { const newVarOptions = Object.keys(newScenarioData.data[0]).filter(k => k !== 'TIME'); newFields[index].variable = newVarOptions[0] || ''; }} setCompareFields(newFields); }; const plotSingle = () => { if (!singleVar) return; setPlotData(scenario.data); setPlotLines([{ dataKey: singleVar, name: `${scenario.name}: ${singleVar.replace(/_/g, ' ')}`, stroke: COLORS[0] }]); }; const plotMulti = () => { const lineConfigs: {dataKey: string; name: string; stroke: string}[] = []; const allData: { [key: number]: PlotDataType } = {}; compareFields.forEach((field, index) => { if(!field.scenarioId || !field.variable) return; const selectedScenario = scenarios.find(s => s.id === field.scenarioId); if(!selectedScenario) return; const dataKey = `${selectedScenario.name}-${field.variable}-${index}`; lineConfigs.push({ dataKey, name: `${selectedScenario.name}: ${field.variable.replace(/_/g, ' ')}`, stroke: COLORS[index % COLORS.length]}); selectedScenario.data.forEach(row => { if (!allData[row.TIME]) allData[row.TIME] = { TIME: row.TIME }; allData[row.TIME][dataKey] = row[field.variable]; }); }); setPlotData(Object.values(allData).sort((a,b) => a.TIME - b.TIME)); setPlotLines(lineConfigs); }; const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE", "#00C49F", "#FFBB28", "#FF8042"]; 
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+            <div className="bg-[#2E2E2E] rounded-lg p-4 flex flex-col space-y-4">
+                <h3 className="text-lg font-semibold text-[#5DADE2]">Configuración</h3>
+                <div className="flex space-x-2 bg-[#242424] p-1 rounded-lg">
+                    <button onClick={() => setPlotType('single')} className={`flex-1 p-2 rounded-md text-sm transition ${plotType === 'single' ? 'bg-[#007ACC]' : 'hover:bg-gray-700'}`}>Gráfica Simple</button>
+                    <button onClick={() => setPlotType('multi')} className={`flex-1 p-2 rounded-md text-sm transition ${plotType === 'multi' ? 'bg-[#007ACC]' : 'hover:bg-gray-700'}`}>Comparativa Múltiple</button>
+                </div>
+                {plotType === 'single' && (<Card><h4 className="font-semibold mb-2">Variable Única</h4><Select value={singleVar} onChange={e => setSingleVar(e.target.value)}>{varOptions.map(v => <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>)}</Select><Button onClick={plotSingle} className="mt-2 w-full">Graficar</Button></Card>)}
+                {plotType === 'multi' && (<Card><h4 className="font-semibold mb-2">Comparativa Múltiple</h4><div className="flex items-center space-x-2"><Input type="number" value={numCompare} onChange={e => setNumCompare(Number(e.target.value))} min="2" max="8" /><Button onClick={handleGenerateCompareFields}>Generar Campos</Button></div><div className="mt-4 space-y-3 max-h-60 overflow-y-auto pr-2">{compareFields.map((field, index) => { const currentScenario = scenarios.find(s => s.id === field.scenarioId); const currentVarOptions = currentScenario?.data?.[0] ? Object.keys(currentScenario.data[0]).filter(k => k !== 'TIME') : []; return (<div key={field.id} className="p-2 bg-gray-900/50 rounded-md space-y-2"><p className="text-xs font-bold text-cyan-400">Variable {index + 1}</p><Select value={field.scenarioId} onChange={e => handleCompareFieldChange(index, 'scenarioId', e.target.value)}>{scenarios.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select><Select value={field.variable} onChange={e => handleCompareFieldChange(index, 'variable', e.target.value)}>{currentVarOptions.map(v => <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>)}</Select></div>);})}</div>{compareFields.length > 0 && <Button onClick={plotMulti} className="mt-4 w-full">Graficar</Button>}</Card>)}
+            </div>
+            <div className="bg-[#2E2E2E] rounded-lg p-4 flex flex-col">
+                <h3 className="text-lg font-semibold text-[#5DADE2] mb-4">Visualización</h3>
+                <div className="flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={plotData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                            <XAxis dataKey="TIME" stroke="#EAEAEA" tick={{ fill: '#EAEAEA', fontSize: 12 }} />
+                            <YAxis 
+                                stroke="#EAEAEA" 
+                                tick={{ fill: '#EAEAEA', fontSize: 12 }} 
+                                domain={[0, 'dataMax']}
+                                allowDataOverflow={true}
+                            />
+                            <Tooltip contentStyle={{ backgroundColor: '#242424', border: '1px solid #555' }} labelStyle={{ color: '#EAEAEA' }}/>
+                            <Legend wrapperStyle={{fontSize: "12px"}}/>
+                            {plotLines.map(line => <Line key={line.dataKey} type="monotone" {...line} dot={false} />)}
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        </div>
+    );
+};
 const Select: FC<React.SelectHTMLAttributes<HTMLSelectElement>> = ({ children, ...props }) => (<div className="relative w-full"><select className="w-full appearance-none bg-[#242424] border border-gray-600 text-white py-2 px-3 rounded-md leading-tight focus:outline-none focus:border-[#007ACC] transition-colors" {...props}>{children}</select><div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400"><ChevronDown className="w-4 h-4"/></div></div>);
 const Input = React.forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>((props, ref) => (<input className="w-full bg-[#242424] border border-gray-600 text-white py-2 px-3 rounded-md leading-tight focus:outline-none focus:border-[#007ACC] transition-colors" ref={ref} {...props} />));
 Input.displayName = 'Input';
