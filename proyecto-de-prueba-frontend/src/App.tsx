@@ -1,11 +1,4 @@
-/*
-  ====================================================================
-  || NOTA: Este código ahora se comunica con un backend de Python.  ||
-  || Asegúrate de que el servidor de Flask (server.py) esté        ||
-  || ejecutándose en otra terminal para que la carga de modelos     ||
-  || Vensim (.mdl) funcione.                                        ||
-  ====================================================================
-*/
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { FC, InputHTMLAttributes } from 'react';
 import { initializeApp } from 'firebase/app';
@@ -66,13 +59,13 @@ const BASE_SCENARIO = {
 
 // --- Firebase Config ---
 const firebaseConfig: FirebaseConfig = {
-    apiKey: "AIzaSyAr8Vpz-530USM_oHFJcIM3edwZxSJEaxs",
-    authDomain: "visor-vensim-web.firebaseapp.com",
-    projectId: "visor-vensim-web",
-    storageBucket: "visor-vensim-web.firebasestorage.app",
-    messagingSenderId: "679190347459",
-    appId: "1:679190347459:web:17f430e578ad1bc0712c76",
-    measurementId: "G-H8FEWLMXKZ"
+     apiKey: "AIzaSyAr8Vpz-530USM_oHFJcIM3edwZxSJEaxs",
+  authDomain: "visor-vensim-web.firebaseapp.com",
+  projectId: "visor-vensim-web",
+  storageBucket: "visor-vensim-web.firebasestorage.app",
+  messagingSenderId: "679190347459",
+  appId: "1:679190347459:web:17f430e578ad1bc0712c76",
+  measurementId: "G-H8FEWLMXKZ"
 };
 
 const appId = 'vensim-app-local';
@@ -362,7 +355,17 @@ const PlotConfigTab: FC<PlotConfigTabProps> = ({ scenario, scenarios }) => { con
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={plotData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                            <XAxis dataKey="TIME" stroke="#EAEAEA" tick={{ fill: '#EAEAEA', fontSize: 12 }} />
+                            {/* ================================================== */}
+                            {/* || LA CORRECCIÓN ESTÁ AQUÍ                      || */}
+                            {/* ================================================== */}
+                            <XAxis 
+                                dataKey="TIME" 
+                                stroke="#EAEAEA" 
+                                tick={{ fill: '#EAEAEA', fontSize: 12 }} 
+                                interval={0} 
+                                angle={-30} 
+                                dy={10}
+                            />
                             <YAxis 
                                 stroke="#EAEAEA" 
                                 tick={{ fill: '#EAEAEA', fontSize: 12 }} 
