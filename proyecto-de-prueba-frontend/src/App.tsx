@@ -191,7 +191,7 @@ const ControlPanel: FC<ControlPanelProps> = ({ onAddScenarioFromBackend }) => {
         formData.append('scenarioName', scenarioName);
 
         try {
-            const response = await fetch('http://127.0.0.1:5000/simulate', { method: 'POST', body: formData });
+            const response = await fetch('https://analizador-vensim-backend.onrender.com/simulate', { method: 'POST', body: formData });
             if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || `Error del servidor: ${response.status}`); }
             const resultsJsonString = await response.json();
             const parsedData = JSON.parse(resultsJsonString) as DataRow[];
@@ -281,7 +281,7 @@ const ModifyScenarioTab: FC<ModifyScenarioTabProps> = ({ baseScenarios, onAddSce
         };
 
         try {
-            const response = await fetch('http://127.0.0.1:5000/resimulate', { 
+                const response = await fetch('https://analizador-vensim-backend.onrender.com/resimulate', {
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
